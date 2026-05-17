@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrackFocus — Plataforma Educativa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/styles-gamification.css" />
+  <link rel="stylesheet" href="assets/styles-charts.css" />
+  <link rel="stylesheet" href="assets/styles-landing.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/logo.svg" class="brand-logo" alt="TrackFocus">
+      <span>TrackFocus</span>
+    </div>
+    <nav id="topnav" class="topnav hidden"></nav>
+    <div id="userbox" class="userbox hidden">
+      <span id="userLabel"></span>
+      <button id="logoutBtn" class="ghost">Salir</button>
+    </div>
+  </header>
+
+  <main id="app" class="container"></main>
+
+  <footer class="footer">
+    <span>TrackFocus · Datos guardados localmente en este navegador</span>
+  </footer>
+
+  <!--
+    Orden de carga:
+    1. Storage (base de datos local)
+    2. Módulos de datos que sólo dependen de Storage
+    3. Módulos de lógica que dependen de los anteriores
+    4. Auth y gestión (usan Storage + módulos de datos)
+    5. Sessions (usa Gamification)
+    6. UI helpers
+    7. UI por rol (usan todo lo anterior, referencian App en tiempo de ejecución)
+    8. Roles (usa Storage, referencia App en tiempo de ejecución)
+    9. App (router final, arranca la aplicación)
+  -->
+  <script src="js/storage.js"></script>
+  <script src="js/subjects.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/recommend.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/gamification.js"></script>
+  <script src="js/pomodoro.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/schools.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sessions.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/ui-student.js"></script>
+  <script src="js/ui-teacher.js"></script>
+  <script src="js/ui-admin.js"></script>
+  <script src="js/roles.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

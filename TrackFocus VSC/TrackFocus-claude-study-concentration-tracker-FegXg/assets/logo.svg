@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
+  <defs>
+    <linearGradient id="lG" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C89B6D"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Three concentric arcs: gap at upper-right (310° to 50°, clockwise) -->
+  <!-- Inner arc r=5.5 -->
+  <path d="M 23.54 24.21 A 5.5 5.5 0 1 1 23.54 15.79"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+  <!-- Middle arc r=8.5 -->
+  <path d="M 25.46 26.51 A 8.5 8.5 0 1 1 25.46 13.49"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+  <!-- Outer arc r=11.5 -->
+  <path d="M 27.39 28.81 A 11.5 11.5 0 1 1 27.39 11.19"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+  <!-- Radiating tick-bars in the gap (angles: 320°, 333°, 346°, 0°, 13°, 26°, 39°) -->
+  <!-- 320° -->
+  <line x1="29.58" y1="11.96" x2="31.40" y2="10.49"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+
+  <!-- 333° -->
+  <line x1="31.14" y1="14.32" x2="34.50" y2="12.57"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+
+  <!-- 346° -->
+  <line x1="32.13" y1="16.97" x2="36.70" y2="15.82"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+
+  <!-- 0° (longest) -->
+  <line x1="32.50" y1="20.00" x2="37.20" y2="20.00"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+
+  <!-- 13° -->
+  <line x1="32.18" y1="22.81" x2="36.70" y2="24.18"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+
+  <!-- 26° -->
+  <line x1="31.24" y1="25.48" x2="34.50" y2="27.43"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+
+  <!-- 39° -->
+  <line x1="29.71" y1="27.86" x2="31.40" y2="29.51"
+        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+</svg>

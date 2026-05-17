@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "TrackFocus-claude-study-concentration-tracker-FegXg/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/TrackFocus-claude-study-concentration-tracker-FegXg/$1"
+    }
+  ]
+}

@@ -1,0 +1,378 @@
+/* ============================
+   TrackFocus — Gamificación
+   ============================ */
+
+/* Hero del estudiante (XP + racha) */
+.student-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(14,18,25,0.85);
+  border: 1px solid rgba(200,155,109,0.18);
+  border-radius: 20px;
+  padding: 22px 24px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(200,155,109,0.06);
+}
+
+.xp-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.level-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.level-badge {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  font-weight: 800;
+  font-size: 13px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1.2;
+  box-shadow: 0 0 20px rgba(200,155,109,0.35), 0 0 40px rgba(139,92,246,0.12);
+}
+
+.xp-bar-wrap {
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.xp-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 999px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(200,155,109,0.4);
+}
+
+.xp-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Widget de racha */
+.streak-widget {
+  text-align: center;
+  padding: 0 14px;
+  min-width: 70px;
+  border-left: 1px solid rgba(255,255,255,0.06);
+}
+
+.streak-fire {
+  font-size: 22px;
+  display: block;
+}
+
+.streak-count {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--warn);
+  display: block;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.streak-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+}
+
+/* Grid de insignias */
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.badge-card {
+  background: rgba(14,18,25,0.85);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 18px 14px;
+  text-align: center;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  backdrop-filter: blur(12px);
+}
+
+.badge-card:not(.locked):hover {
+  transform: translateY(-4px);
+  border-color: rgba(200,155,109,0.4);
+  box-shadow: 0 8px 24px rgba(200,155,109,0.1);
+}
+
+.badge-card.locked {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.badge-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.badge-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.badge-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.badge-date {
+  font-size: 10px;
+  color: var(--primary);
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+/* Leaderboard */
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.leaderboard-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 10px 8px;
+}
+
+.leaderboard-table td {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: middle;
+  padding: 10px 8px;
+}
+
+.leaderboard-table tr.self td,
+.leaderboard-table tr:has(td.self-row) td {
+  background: rgba(200,155,109,0.07);
+}
+
+tr.self td { background: rgba(200,155,109,0.07) !important; }
+.self-row  { background: rgba(200,155,109,0.07); }
+
+.rank-medal-1 { color: #FFD700; font-weight: 800; font-size: 16px; }
+.rank-medal-2 { color: #C0C0C0; font-weight: 800; font-size: 15px; }
+.rank-medal-3 { color: #CD7F32; font-weight: 800; font-size: 15px; }
+
+.avatar-initials {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+  margin-right: 6px;
+  color: white;
+}
+
+/* Tabs */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 0;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  letter-spacing: -0.1px;
+}
+
+.tab-btn.active,
+.tab-btn:hover {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.active-filter {
+  border-color: rgba(200,155,109,0.5) !important;
+  color: var(--primary) !important;
+  background: rgba(200,155,109,0.08) !important;
+}
+
+/* Pomodoro */
+.pomodoro-wrap {
+  max-width: 400px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.timer-display {
+  font-size: 80px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+  letter-spacing: -4px;
+  margin: 24px 0 4px;
+  text-shadow: 0 0 40px rgba(200,155,109,0.3);
+  line-height: 1;
+}
+
+.timer-mode {
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+}
+
+.cycle-dots {
+  margin: 12px 0;
+  font-size: 16px;
+  color: var(--muted);
+  letter-spacing: 4px;
+}
+
+.cycle-dots .done { color: var(--primary); }
+
+.timer-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+/* Modal Pomodoro */
+.pom-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,10,15,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(6px);
+}
+
+.pom-modal.hidden { display: none; }
+
+.pom-modal-inner {
+  max-width: 420px;
+  width: 90%;
+  animation: modalIn 0.22s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes modalIn {
+  from { transform: scale(0.93); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* Toast XP */
+.xp-toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: rgba(14,18,25,0.95);
+  border: 1px solid rgba(200,155,109,0.45);
+  border-radius: 14px;
+  padding: 14px 22px;
+  z-index: 300;
+  color: var(--text);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 24px rgba(200,155,109,0.15);
+  animation: slideUp 0.3s ease, fadeOut 0.5s ease 2.3s forwards;
+  min-width: 160px;
+  line-height: 1.5;
+  backdrop-filter: blur(16px);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; pointer-events: none; }
+}
+
+/* Risk / status badges */
+.risk-badge {
+  display: inline-block;
+  background: rgba(239,68,68,0.1);
+  color: var(--bad);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ok-badge {
+  display: inline-block;
+  background: rgba(34,197,94,0.08);
+  color: var(--good);
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Choice card activa */
+.active-choice {
+  border-color: rgba(200,155,109,0.65) !important;
+  background: rgba(200,155,109,0.06) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 0 24px rgba(200,155,109,0.1) !important;
+}
+
+/* Welcome */
+.welcome h1 { font-size: 40px; margin-bottom: 8px; }
+
+@media (max-width: 760px) {
+  .timer-display { font-size: 60px; }
+  .student-hero  { flex-direction: column; align-items: flex-start; }
+  .badges-grid   { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .streak-widget { border-left: none; border-top: 1px solid rgba(255,255,255,0.06); padding: 12px 0 0; }
+}

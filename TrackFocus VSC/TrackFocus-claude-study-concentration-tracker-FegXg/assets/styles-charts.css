@@ -1,0 +1,65 @@
+/* ============================
+   TrackFocus — Charts & Heatmap
+   ============================ */
+
+/* Contenedores Chart.js */
+.chart-container {
+  position: relative;
+  height: 220px;
+  width: 100%;
+}
+
+.chart-container.tall {
+  height: 300px;
+}
+
+.chart-container canvas {
+  max-width: 100%;
+}
+
+/* Heatmap de actividad (52 semanas × 7 días) */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(52, 1fr);
+  gap: 2px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.hm-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background-color: color-mix(
+    in srgb,
+    #C89B6D calc(var(--i, 0) * 100%),
+    rgba(255,255,255,0.04)
+  );
+  cursor: default;
+  transition: transform 0.1s;
+  min-width: 8px;
+}
+
+/* Fallback para navegadores sin color-mix */
+@supports not (background-color: color-mix(in srgb, red 50%, blue)) {
+  .hm-cell {
+    background-color: rgba(255,255,255,0.04);
+    opacity: calc(0.15 + var(--i, 0) * 0.85);
+  }
+  .hm-cell:not(.empty) {
+    background-color: #C89B6D;
+  }
+}
+
+.hm-cell:hover {
+  transform: scale(1.5);
+  z-index: 1;
+}
+
+.hm-cell.empty {
+  background: rgba(255,255,255,0.03);
+  opacity: 0.5;
+}
+
+@media (max-width: 760px) {
+  .hm-cell { min-width: 5px; }
+}
