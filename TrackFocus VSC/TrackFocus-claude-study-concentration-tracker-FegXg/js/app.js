@@ -4,6 +4,9 @@ const App = (() => {
   const ROUTE_ROLES = {
     // Públicas
     'welcome':            null,
+    'student-onboarding': null,
+    'teacher-promote':    null,
+    'admin-promote':      null,
 
     // Estudiante
     'pending-approval':   ['student'],
@@ -56,7 +59,10 @@ const App = (() => {
     document.getElementById('app').className = route === 'welcome' ? 'lp-main' : 'container';
 
     const allScreens = {
-      welcome: { render: screenWelcome, wire: wireWelcome },
+      welcome:              { render: screenWelcome,           wire: wireWelcome },
+      'student-onboarding': { render: screenStudentOnboarding, wire: wireStudentOnboarding },
+      'teacher-promote':    { render: screenTeacherPromote,    wire: wireTeacherPromote },
+      'admin-promote':      { render: screenAdminPromote,      wire: wireAdminPromote },
       ...UIStudent.screens,
       ...UITeacher.screens,
       ...UIAdmin.screens
@@ -138,22 +144,60 @@ const App = (() => {
       const r = e.target.closest('button')?.dataset.route;
       if (r) go(r);
     });
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      Auth.logout();
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await Auth.logout();
       go('welcome');
     });
   }
 
-  function start() {
+  async function start() {
     bindGlobal();
+
+    if (!window.SB_READY) {
+      go('welcome');
+      // Mostrar aviso amable si supabase-config.js no está configurado
+      setTimeout(() => UI.flash?.('Configura supabase-config.js para activar la nube.', 'error'), 200);
+      return;
+    }
+
+    // 1. ¿Hay sesión Google activa?
+    const session = await Auth.getSession();
+    if (!session) return go('welcome');
+
+    // 2. Sí: trae todo el estado desde Supabase y monta cache local
+    try {
+      await Storage.bootstrap();
+    } catch (e) {
+      console.error('[App] bootstrap error:', e);
+      UI.flash?.('No se pudieron cargar tus datos. Reintenta.', 'error');
+      return go('welcome');
+    }
+
+    Storage.setCurrent(session.user.email.toLowerCase());
+
+    // Suscribirse a cambios remotos (multi-dispositivo)
+    Storage.bindRealtime(() => {
+      // Cuando llegan cambios, repintar la pantalla actual
+      if (_current && _current !== 'welcome') go(_current);
+    });
+
     const user = Roles.current();
     if (!user) return go('welcome');
+
+    // 3. ¿Hay intención de rol pendiente del click pre-OAuth?
+    const intent = Auth.getRoleIntent();
+
+    // Si es admin pendiente, mostrar pantalla de contraseña
+    if (intent === 'admin' && user.role !== 'super_admin') return go('admin-promote');
+    if (intent === 'teacher' && user.role === 'student' && !user.schoolId) return go('teacher-promote');
+
+    // 4. Rutado por rol
     if (user.role === 'super_admin') return go('admin-dashboard');
     if (user.role === 'teacher')     return go('teacher-dashboard');
-    // Estudiante: verificar flujo de aprobación
     if (user.schoolId && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
       return go('pending-approval');
     }
+    if (!user.institutionType && !user.schoolId) return go('student-onboarding');
     if (!user.institutionType) return go('institution');
     return go('dashboard');
   }
@@ -265,9 +309,7 @@ const App = (() => {
         <footer class="lp-footer">
           <span>© 2025 TrackFocus</span>
           <span class="lp-footer-sep">·</span>
-          <span>Datos guardados localmente en este navegador</span>
-          <span class="lp-footer-sep">·</span>
-          <span>Sin servidor · Sin tracking</span>
+          <span>Datos sincronizados de forma segura en la nube</span>
         </footer>
       </div>
     </div>`;
@@ -312,90 +354,148 @@ const App = (() => {
     return `<div class="lp-input-row"><span class="lp-input-ico">${_svgIco[ico]}</span><input ${attrs} /></div>`;
   }
 
+  // Logo oficial de Google (Material) para el botón de login
+  const GOOGLE_SVG = `<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>`;
+
   function renderAuthForm(role) {
     const container = document.getElementById('authForm');
     if (!container) return;
 
     container.classList.remove('hidden', 'lp-form--purple', 'lp-form--blue');
 
-    if (role === 'student') {
-      container.innerHTML = `
-        <div class="lp-form-head">
-          <div class="lp-form-emoji lp-form-emoji--gold">🎒</div>
-          <div class="lp-form-head-text">
-            <h2>Entrar como Estudiante</h2>
-            <p>Usa tu Gmail personal para acceder o crear tu cuenta</p>
-          </div>
-        </div>
-        <form id="studentLoginForm">
-          ${_lpField('Nombre completo', _lpInput('user', 'name="name" required placeholder="Ej. María López"'))}
-          ${_lpField('Gmail personal', _lpInput('mail', 'name="email" type="email" required placeholder="estudiante@gmail.com"'))}
-          ${_lpField('Código de colegio', _lpInput('lock', 'name="code" placeholder="6 caracteres — pídelo a tu docente" maxlength="6" style="text-transform:uppercase;"'), '(opcional)')}
-          ${_lpField('Código de invitación de aula', _lpInput('lock', 'name="inviteCode" placeholder="8 caracteres — pídelo a tu profesor" maxlength="8" style="text-transform:uppercase;"'), '(opcional)')}
-          <button class="lp-btn-submit" type="submit">Continuar ${_svgIco.arrow}</button>
-        </form>`;
-      document.getElementById('studentLoginForm').addEventListener('submit', e => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        try {
-          const user = Auth.loginOrRegisterStudent(
-            fd.get('name'), fd.get('email'), fd.get('code'), fd.get('inviteCode')
-          );
-          if (user.schoolId && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
-            go('pending-approval');
-          } else {
-            go(user.institutionType ? 'dashboard' : 'institution');
-          }
-        } catch (err) { UI.flash(err.message, 'error'); }
-      });
+    const cfg = {
+      student: { cls: 'lp-form-emoji--gold',   emoji: '🎒', title: 'Entrar como Estudiante', subtitle: 'Inicia sesión con tu cuenta de Google. Crearemos tu perfil al instante.' },
+      teacher: { cls: 'lp-form-emoji--purple', emoji: '👩‍🏫', title: 'Entrar como Docente',    subtitle: 'Inicia sesión con tu cuenta institucional de Google.' },
+      admin:   { cls: 'lp-form-emoji--blue',   emoji: '🛡️', title: 'Acceso Administrador',     subtitle: 'Inicia sesión con Google y luego ingresa la contraseña de administrador.' }
+    }[role];
 
-    } else if (role === 'teacher') {
-      container.classList.add('lp-form--purple');
-      container.innerHTML = `
-        <div class="lp-form-head">
-          <div class="lp-form-emoji lp-form-emoji--purple">👩‍🏫</div>
-          <div class="lp-form-head-text">
-            <h2>Entrar como Docente</h2>
-            <p>Usa el código de colegio proporcionado por el administrador</p>
-          </div>
-        </div>
-        <form id="teacherLoginForm">
-          ${_lpField('Email institucional', _lpInput('mail', 'name="email" type="email" required placeholder="docente@colegio.edu"'))}
-          ${_lpField('Código del colegio', _lpInput('lock', 'name="code" required placeholder="6 caracteres — del administrador" maxlength="6" style="text-transform:uppercase;"'))}
-          <button class="lp-btn-submit lp-btn-submit--purple" type="submit">Continuar ${_svgIco.arrow}</button>
-        </form>`;
-      document.getElementById('teacherLoginForm').addEventListener('submit', e => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        try {
-          Auth.loginTeacher(fd.get('email'), fd.get('code'));
-          go('teacher-dashboard');
-        } catch (err) { UI.flash(err.message, 'error'); }
-      });
+    if (role === 'teacher') container.classList.add('lp-form--purple');
+    if (role === 'admin')   container.classList.add('lp-form--blue');
 
-    } else if (role === 'admin') {
-      container.classList.add('lp-form--blue');
-      container.innerHTML = `
-        <div class="lp-form-head">
-          <div class="lp-form-emoji lp-form-emoji--blue">🛡️</div>
-          <div class="lp-form-head-text">
-            <h2>Acceso Administrador</h2>
-            <p>Solo el administrador del sistema tiene acceso a este panel</p>
-          </div>
+    container.innerHTML = `
+      <div class="lp-form-head">
+        <div class="lp-form-emoji ${cfg.cls}">${cfg.emoji}</div>
+        <div class="lp-form-head-text">
+          <h2>${cfg.title}</h2>
+          <p>${cfg.subtitle}</p>
         </div>
-        <form id="adminLoginForm">
-          ${_lpField('Contraseña de administrador', _lpInput('lock', 'name="password" type="password" required placeholder="Contraseña secreta"'))}
-          <button class="lp-btn-submit lp-btn-submit--blue" type="submit">Entrar al panel ${_svgIco.arrow}</button>
-        </form>`;
-      document.getElementById('adminLoginForm').addEventListener('submit', e => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        try {
-          Auth.loginSuperAdmin(fd.get('password'));
-          go('admin-dashboard');
-        } catch (err) { UI.flash(err.message, 'error'); }
-      });
-    }
+      </div>
+      <button class="lp-btn-google" type="button" id="googleSignInBtn">
+        ${GOOGLE_SVG}
+        <span>Continuar con Google</span>
+      </button>
+      <p class="lp-form-foot">Al continuar aceptas que tus datos se sincronicen de forma segura en la nube.</p>
+    `;
+
+    document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+      try {
+        await Auth.signInWithGoogle(role);
+      } catch (err) {
+        UI.flash(err.message || 'No se pudo iniciar Google. Revisa la configuración.', 'error');
+      }
+    });
+  }
+
+  // ---- Onboarding post-Google para estudiantes (códigos de colegio/aula) ----
+  function screenStudentOnboarding() {
+    const u = Roles.current();
+    if (!u) { return ''; }
+    return `
+      <div class="card" style="max-width:520px;margin:48px auto;">
+        <h2 style="margin:0 0 8px;">¡Bienvenido${u.name ? ', ' + u.name.split(' ')[0] : ''}!</h2>
+        <p class="muted" style="margin:0 0 22px;">Para unirte a tu colegio, ingresa los códigos que te dio tu profesor. Puedes saltarlo y agregarlos después.</p>
+        <form id="onboardForm">
+          <label>Código del colegio <span class="muted">(opcional)</span></label>
+          <input name="code" maxlength="6" placeholder="6 caracteres" style="text-transform:uppercase;" />
+          <label style="margin-top:14px;">Código del aula <span class="muted">(opcional)</span></label>
+          <input name="inviteCode" maxlength="8" placeholder="8 caracteres" style="text-transform:uppercase;" />
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button class="primary" type="submit">Continuar</button>
+            <button class="ghost" type="button" id="skipOnboard">Saltar por ahora</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  function wireStudentOnboarding() {
+    document.getElementById('onboardForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const u = Roles.current();
+        await Auth.applyStudentCodes(u.id, fd.get('code'), fd.get('inviteCode'));
+        await Storage.flush();
+        const fresh = Roles.current();
+        if (fresh.schoolId && fresh.approvalStatus === 'pending') return go('pending-approval');
+        return go('institution');
+      } catch (err) { UI.flash(err.message, 'error'); }
+    });
+    document.getElementById('skipOnboard')?.addEventListener('click', () => go('institution'));
+  }
+
+  // ---- Pantalla para promover a docente (post-Google) ----
+  function screenTeacherPromote() {
+    return `
+      <div class="card" style="max-width:520px;margin:48px auto;">
+        <h2 style="margin:0 0 8px;">Verificación de docente</h2>
+        <p class="muted" style="margin:0 0 22px;">Ingresa el código del colegio que te dio el administrador.</p>
+        <form id="teacherPromoteForm">
+          <label>Código del colegio</label>
+          <input name="code" maxlength="6" required placeholder="6 caracteres" style="text-transform:uppercase;" />
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button class="primary" type="submit">Continuar</button>
+            <button class="ghost" type="button" id="cancelTeacherPromote">Cancelar</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  function wireTeacherPromote() {
+    document.getElementById('teacherPromoteForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const u = Roles.current();
+        await Auth.promoteToTeacher(u.id, fd.get('code'));
+        await Storage.flush();
+        go('teacher-dashboard');
+      } catch (err) { UI.flash(err.message, 'error'); }
+    });
+    document.getElementById('cancelTeacherPromote')?.addEventListener('click', async () => {
+      await Auth.logout();
+      go('welcome');
+    });
+  }
+
+  // ---- Pantalla para promover a super admin ----
+  function screenAdminPromote() {
+    return `
+      <div class="card" style="max-width:520px;margin:48px auto;">
+        <h2 style="margin:0 0 8px;">Acceso de administrador</h2>
+        <p class="muted" style="margin:0 0 22px;">Ingresa la contraseña maestra para acceder al panel global.</p>
+        <form id="adminPromoteForm">
+          <label>Contraseña</label>
+          <input name="password" type="password" required placeholder="Contraseña secreta" />
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button class="primary" type="submit">Entrar al panel</button>
+            <button class="ghost" type="button" id="cancelAdminPromote">Cancelar</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  function wireAdminPromote() {
+    document.getElementById('adminPromoteForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const u = Roles.current();
+        await Auth.promoteToSuperAdmin(u.id, fd.get('password'));
+        await Storage.flush();
+        go('admin-dashboard');
+      } catch (err) { UI.flash(err.message, 'error'); }
+    });
+    document.getElementById('cancelAdminPromote')?.addEventListener('click', async () => {
+      await Auth.logout();
+      go('welcome');
+    });
   }
 
   return {

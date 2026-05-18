@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="assets/styles-charts.css" />
   <link rel="stylesheet" href="assets/styles-landing.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <header class="topbar">
@@ -29,7 +30,7 @@
   <main id="app" class="container"></main>
 
   <footer class="footer">
-    <span>TrackFocus · Datos guardados localmente en este navegador</span>
+    <span>TrackFocus · Datos sincronizados de forma segura en la nube</span>
   </footer>
 
   <!--
@@ -44,6 +45,11 @@
     8. Roles (usa Storage, referencia App en tiempo de ejecución)
     9. App (router final, arranca la aplicación)
   -->
+  <script defer src="/_vercel/insights/script.js"></script>
+  <!-- Cloud: configuración Supabase y wrapper de sync. Deben cargarse ANTES de storage.js. -->
+  <script src="js/supabase-config.js"></script>
+  <script src="js/cloud.js"></script>
+  <!-- Resto de módulos (orden de dependencias intacto) -->
   <script src="js/storage.js"></script>
   <script src="js/subjects.js"></script>
   <script src="js/stats.js"></script>
