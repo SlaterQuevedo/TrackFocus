@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "TrackFocus-claude-study-concentration-tracker-FegXg/api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "TrackFocus-claude-study-concentration-tracker-FegXg/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/gemini(.*)",
+      "dest": "/TrackFocus-claude-study-concentration-tracker-FegXg/api/gemini.js"
+    },
+    {
+      "src": "/api/ai-chat",
+      "dest": "/TrackFocus-claude-study-concentration-tracker-FegXg/api/ai-chat.js"
+    },
+    {
+      "src": "/api/transcribe",
+      "dest": "/TrackFocus-claude-study-concentration-tracker-FegXg/api/transcribe.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/TrackFocus-claude-study-concentration-tracker-FegXg/$1"
+    }
+  ]
+}

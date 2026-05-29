@@ -75,6 +75,7 @@ create table if not exists public.study_sessions (
   previous_activity_other  text default '',
   comment                  text default '',
   classroom_id             text references public.classrooms(id) on delete set null,
+  metrics                  jsonb not null default '{}'::jsonb,
   created_at               timestamptz not null default now()
 );
 create index if not exists study_sessions_email_idx    on public.study_sessions(email);
