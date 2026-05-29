@@ -227,7 +227,7 @@ const UIStudent = (() => {
       b.addEventListener('click', () => App.go(b.dataset.go)));
   }
 
-  // ---- Pantalla: Nueva sesión ----
+  // ---- Pantalla: Nueva sesión — Etapa 1: Configuración de metadatos ----
   function screenNewSession() {
     const s = Storage.get();
     const user = s.users[s.currentUserId];
@@ -235,90 +235,342 @@ const UIStudent = (() => {
     const now = new Date();
     const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
+    const grades = [
+      { id: '1ro', label: '1ro de Secundaria' },
+      { id: '2do', label: '2do de Secundaria' },
+      { id: '3ro', label: '3ro de Secundaria' },
+      { id: '4to', label: '4to de Secundaria' },
+      { id: '5to', label: '5to de Secundaria' }
+    ];
+
     return `
-      <h1>Registrar sesión de estudio</h1>
-      <form id="sessionForm" class="card">
-        <div class="row">
-          <div class="field">
-            <label>Fecha y hora</label>
-            <input type="datetime-local" name="datetime" value="${local}" required />
+      <div class="session-setup-wrap">
+        <h1>🤖 Aprendizaje con IA</h1>
+        <p class="muted" style="margin-bottom:20px;">Configura tu sesión y estudia con un tutor inteligente que analizará tu concentración automáticamente.</p>
+
+        <form id="sessionSetupForm" class="card">
+          <div class="row">
+            <div class="field">
+              <label>Fecha y hora</label>
+              <input type="datetime-local" name="datetime" value="${local}" required />
+            </div>
+            <div class="field">
+              <label>Duración (minutos)</label>
+              <input type="number" name="durationMin" min="5" max="240" value="30" required />
+            </div>
           </div>
-          <div class="field">
-            <label>Duración (minutos)</label>
-            <input type="number" name="durationMin" min="1" max="600" value="30" required />
+          <div class="row">
+            <div class="field">
+              <label>Curso / materia</label>
+              <select name="subject" required>
+                ${subjects.map(x => `<option>${esc(x)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label>Grado escolar</label>
+              <select name="grade" required>
+                ${grades.map(g => `<option value="${g.id}">${esc(g.label)}</option>`).join('')}
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="field">
-          <label>Curso / materia</label>
-          <select name="subject" required>
-            ${subjects.map(x => `<option>${esc(x)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field">
-          <label>Nivel de concentración</label>
-          <div class="likert">
-            ${Sessions.LIKERT.map(l => `
-              <label title="${esc(l.label)}">
-                <input type="radio" name="concentration" value="${l.v}" ${l.v === 3 ? 'checked' : ''} required />
-                <div class="lk-num">${l.v}</div>
-                <div class="lk-txt">${esc(l.label)}</div>
-              </label>`).join('')}
-          </div>
-        </div>
-        <div class="row">
           <div class="field">
             <label>Actividad previa</label>
-            <select name="previousActivity" id="prevAct" required>
+            <select name="previousActivity" required>
               ${Sessions.PREVIOUS_ACTIVITIES.map(a => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}
             </select>
           </div>
-          <div class="field" id="otherWrap" style="display:none;">
-            <label>Especificar otra</label>
-            <input name="previousActivityOther" placeholder="Ej. ducharme" />
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+            <button type="button" class="ghost" data-go="dashboard">Cancelar</button>
+            <button class="primary" type="submit">Comenzar sesión con IA ✨</button>
           </div>
-        </div>
-        <div class="field">
-          <label>Comentario (opcional)</label>
-          <textarea name="comment" placeholder="¿Qué notaste? ¿Distracciones, ambiente, energía?"></textarea>
-        </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button type="button" class="ghost" data-go="dashboard">Cancelar</button>
-          <button class="primary" type="submit">Guardar sesión</button>
-        </div>
-      </form>`;
+        </form>
+
+        <p class="muted" style="font-size:12px;margin-top:12px;text-align:center;">
+          La IA evaluará tu concentración y aprendizaje de forma invisible mientras estudias.
+        </p>
+      </div>`;
   }
 
   function wireNewSession() {
-    const form = document.getElementById('sessionForm');
-    const prev = document.getElementById('prevAct');
-    const other = document.getElementById('otherWrap');
-    prev.addEventListener('change', () => { other.style.display = prev.value === 'otra' ? '' : 'none'; });
     root().querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => App.go(b.dataset.go)));
 
-    form.addEventListener('submit', (e) => {
+    document.getElementById('sessionSetupForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      const fd = new FormData(form);
-      const s = Storage.get();
-      const user = s.users[s.currentUserId];
-      try {
-        const { record, gamResult } = Sessions.add({
-          email: user.id,
-          datetime: new Date(fd.get('datetime')).toISOString(),
-          institutionType: user.institutionType || 'colegio',
-          subject: fd.get('subject'),
-          concentration: fd.get('concentration'),
-          durationMin: fd.get('durationMin'),
-          previousActivity: fd.get('previousActivity'),
-          previousActivityOther: fd.get('previousActivityOther') || '',
-          comment: fd.get('comment') || ''
-        });
-        App.go('dashboard');
-        UI.flash('Sesión guardada correctamente. ¡Sigue así!', 'success');
-        showXpToast(gamResult.xpEarned, gamResult.newBadges);
-      } catch (err) {
-        UI.flash(err.message, 'error');
+      const fd = new FormData(e.target);
+      const metadata = {
+        datetime:         new Date(fd.get('datetime')).toISOString(),
+        durationMin:      Number(fd.get('durationMin')),
+        subject:          fd.get('subject'),
+        grade:            fd.get('grade'),
+        previousActivity: fd.get('previousActivity')
+      };
+      _startAiChat(metadata);
+    });
+  }
+
+  // ---- Chat IA — estado en memoria (no persiste en Storage) ----
+  let _chatState = null;
+
+  function _startAiChat(metadata) {
+    _chatState = { metadata, history: [], startedAt: Date.now() };
+    root().innerHTML = _renderChatScreen(metadata);
+    _wireChatScreen();
+    // Mensaje de bienvenida automático
+    _sendAiMessage('Hola, estoy listo para comenzar. ¿Qué tema de ' + metadata.subject + ' vas a estudiar hoy?');
+  }
+
+  function _renderChatScreen(metadata) {
+    const gradeLabel = {
+      '1ro': '1ro Sec.', '2do': '2do Sec.', '3ro': '3ro Sec.',
+      '4to': '4to Sec.', '5to': '5to Sec.'
+    }[metadata.grade] || metadata.grade;
+
+    return `
+      <div class="chat-screen">
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <span class="chat-header-title">🤖 TrackTutor · ${esc(metadata.subject)}</span>
+            <span class="chat-header-sub">${esc(gradeLabel)} · ${metadata.durationMin} min planificados</span>
+          </div>
+          <div class="chat-header-actions">
+            <button class="ghost" id="chatCancelBtn" style="font-size:12px;padding:6px 12px;">Cancelar</button>
+            <button class="primary" id="chatFinalizeBtn" style="font-size:12px;padding:6px 14px;">Finalizar sesión</button>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages"></div>
+
+        <div class="chat-input-area">
+          <div class="chat-input-row">
+            <textarea
+              id="chatInput"
+              placeholder="Escribe tu pregunta o respuesta..."
+              rows="1"
+            ></textarea>
+            <button class="primary" id="chatSendBtn" style="height:44px;padding:0 18px;flex-shrink:0;">Enviar</button>
+          </div>
+          <div class="chat-footer-actions">
+            <span class="chat-hint">Presiona Enter para enviar · Shift+Enter para nueva línea</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function _wireChatScreen() {
+    const input    = document.getElementById('chatInput');
+    const sendBtn  = document.getElementById('chatSendBtn');
+    const finalBtn = document.getElementById('chatFinalizeBtn');
+    const cancelBtn = document.getElementById('chatCancelBtn');
+
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+
+    // Enter envía, Shift+Enter nueva línea
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
       }
     });
+
+    sendBtn.addEventListener('click', () => {
+      const text = input.value.trim();
+      if (!text || !_chatState) return;
+      input.value = '';
+      input.style.height = 'auto';
+      _handleUserMessage(text);
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      if (!confirm('¿Salir de la sesión? No se guardará el progreso.')) return;
+      _chatState = null;
+      App.go('dashboard');
+    });
+
+    finalBtn.addEventListener('click', () => _finalizeChat());
+  }
+
+  function _appendBubble(role, text, streaming) {
+    const messages = document.getElementById('chatMessages');
+    if (!messages) return null;
+
+    const wrap = document.createElement('div');
+    wrap.className = `chat-bubble-wrap ${role}`;
+
+    const label = document.createElement('div');
+    label.className = 'chat-bubble-label';
+    label.textContent = role === 'ia' ? 'TrackTutor' : 'Tú';
+
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${role}`;
+    bubble.textContent = text;
+
+    wrap.appendChild(label);
+    wrap.appendChild(bubble);
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+
+    return streaming ? bubble : null;
+  }
+
+  function _showTyping() {
+    const messages = document.getElementById('chatMessages');
+    if (!messages) return null;
+    const el = document.createElement('div');
+    el.id = 'chatTyping';
+    el.className = 'chat-bubble-wrap ia';
+    el.innerHTML = '<div class="chat-typing"><span></span><span></span><span></span></div>';
+    messages.appendChild(el);
+    messages.scrollTop = messages.scrollHeight;
+    return el;
+  }
+
+  function _removeTyping() {
+    document.getElementById('chatTyping')?.remove();
+  }
+
+  async function _sendAiMessage(userTriggerText) {
+    if (!_chatState) return;
+
+    const typingEl = _showTyping();
+    const sendBtn  = document.getElementById('chatSendBtn');
+    const finalBtn = document.getElementById('chatFinalizeBtn');
+    if (sendBtn)  sendBtn.disabled = true;
+    if (finalBtn) finalBtn.disabled = true;
+
+    const bubble = _appendBubble('ia', '', true);
+    typingEl?.remove();
+
+    let fullText = '';
+    const msgTimestamp = Date.now();
+
+    try {
+      fullText = await AiChatProxy.sendMessage(
+        _chatState.metadata,
+        _chatState.history,
+        userTriggerText,
+        (chunk) => {
+          if (bubble) {
+            bubble.textContent += chunk;
+            const msgs = document.getElementById('chatMessages');
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+          }
+        }
+      );
+
+      _chatState.history.push(
+        { role: 'user',  content: userTriggerText, timestamp: msgTimestamp },
+        { role: 'model', content: fullText,         timestamp: Date.now()   }
+      );
+    } catch (err) {
+      _removeTyping();
+      if (bubble) bubble.textContent = '⚠️ Error al contactar al tutor. Intenta de nuevo.';
+      UI.flash(err.message, 'error');
+    } finally {
+      if (sendBtn)  sendBtn.disabled = false;
+      if (finalBtn) finalBtn.disabled = false;
+    }
+  }
+
+  async function _handleUserMessage(text) {
+    if (!_chatState) return;
+    const ts = Date.now();
+    _appendBubble('user', text);
+
+    const typingEl = _showTyping();
+    const sendBtn  = document.getElementById('chatSendBtn');
+    const finalBtn = document.getElementById('chatFinalizeBtn');
+    if (sendBtn)  sendBtn.disabled = true;
+    if (finalBtn) finalBtn.disabled = true;
+
+    // Añadir al historial antes de enviar para que el modelo tenga contexto
+    _chatState.history.push({ role: 'user', content: text, timestamp: ts });
+
+    // Burbuja de streaming para la respuesta
+    _removeTyping();
+    const bubble = _appendBubble('ia', '', true);
+
+    let fullText = '';
+    try {
+      fullText = await AiChatProxy.sendMessage(
+        _chatState.metadata,
+        // enviamos el historial sin el último mensaje (ya está incluido como userMessage)
+        _chatState.history.slice(0, -1),
+        text,
+        (chunk) => {
+          if (bubble) {
+            bubble.textContent += chunk;
+            const msgs = document.getElementById('chatMessages');
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+          }
+        }
+      );
+      _chatState.history.push({ role: 'model', content: fullText, timestamp: Date.now() });
+    } catch (err) {
+      if (bubble) bubble.textContent = '⚠️ Error al contactar al tutor. Intenta de nuevo.';
+      UI.flash(err.message, 'error');
+      // Quitar el último mensaje de usuario si falló
+      _chatState.history.pop();
+    } finally {
+      if (sendBtn)  sendBtn.disabled = false;
+      if (finalBtn) finalBtn.disabled = false;
+    }
+  }
+
+  async function _finalizeChat() {
+    if (!_chatState) return;
+
+    if (_chatState.history.length < 2) {
+      UI.flash('Chatea un poco más antes de finalizar la sesión.', 'error');
+      return;
+    }
+
+    const finalBtn  = document.getElementById('chatFinalizeBtn');
+    const cancelBtn = document.getElementById('chatCancelBtn');
+    const sendBtn   = document.getElementById('chatSendBtn');
+    const inputArea = document.querySelector('.chat-input-area');
+
+    if (finalBtn)  finalBtn.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+    if (sendBtn)   sendBtn.disabled = true;
+    if (inputArea) inputArea.innerHTML = `
+      <div class="chat-finalizing">
+        <div class="spinner-ring"></div>
+        <span>Analizando tu sesión… esto toma unos segundos</span>
+      </div>`;
+
+    try {
+      const { concentration, metrics } = await AiChatProxy.finalizeSession(
+        _chatState.metadata,
+        _chatState.history
+      );
+
+      const s    = Storage.get();
+      const user = s.users[s.currentUserId];
+      const { record, gamResult } = Sessions.add({
+        email:            user.id,
+        datetime:         _chatState.metadata.datetime,
+        institutionType:  user.institutionType || 'colegio',
+        subject:          _chatState.metadata.subject,
+        concentration:    concentration,
+        durationMin:      _chatState.metadata.durationMin,
+        previousActivity: _chatState.metadata.previousActivity,
+        comment:          JSON.stringify(metrics)
+      });
+
+      _chatState = null;
+      App.go('dashboard');
+      UI.flash(`Sesión guardada · Concentración deducida: ${concentration}/5 🎯`, 'success');
+      showXpToast(gamResult.xpEarned, gamResult.newBadges);
+    } catch (err) {
+      UI.flash('Error al guardar la sesión: ' + err.message, 'error');
+      if (finalBtn)  finalBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+      if (sendBtn)   sendBtn.disabled = false;
+    }
   }
 
   // ---- Pantalla: Materias ----
@@ -409,7 +661,7 @@ const UIStudent = (() => {
       const fromDate = document.getElementById('fFrom').value;
       const toDate = document.getElementById('fTo').value;
       App._historyFilters = { subject, fromDate, toDate,
-        from: fromDate ? new Date(fromDate).toISOString() : '',
+        from: fromDate ? new Date(fromDate + 'T00:00:00').toISOString() : '',
         to: toDate ? new Date(toDate + 'T23:59:59').toISOString() : '' };
       App.go('history');
     });
@@ -744,10 +996,10 @@ const UIStudent = (() => {
             UI.flash('Sesión Pomodoro guardada. +' + gamResult.xpEarned + ' XP', 'success');
           } catch (err) { UI.flash(err.message, 'error'); }
           if (modal) modal.classList.add('hidden');
-        });
+        }, { once: true });
       }
       const skipBtn = document.getElementById('pomSkipLog');
-      if (skipBtn) skipBtn.addEventListener('click', () => { if (modal) modal.classList.add('hidden'); });
+      if (skipBtn) skipBtn.addEventListener('click', () => { if (modal) modal.classList.add('hidden'); }, { once: true });
     }
 
     let lastFocusDuration = Pomodoro.DEFAULTS.focus;
@@ -901,6 +1153,181 @@ const UIStudent = (() => {
     });
   }
 
+  // ---- Pantalla: AI Study (Multimedia) ----
+  function screenAIStudy() {
+    const s = Storage.get();
+    const user = s.users[s.currentUserId];
+    const recentFiles = Object.values(s.uploadedFiles || {})
+      .filter(f => f.userId === user.id)
+      .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
+      .slice(0, 5);
+
+    return `
+      <h1>📚 Estudio con IA</h1>
+      <p class="muted">Carga archivos y recibe análisis inteligente con IA. Soporta: imágenes, PDF, PowerPoint, audio, video, Word, documentos de texto.</p>
+
+      <div class="ai-study-grid">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          ${UIComponentsMultimedia.FileUploader('aiStudyUpload', null)}
+
+          ${recentFiles.length > 0 ? `
+          <div style="background:var(--bg-2);border-radius:var(--radius,12px);padding:16px;border:1px solid var(--border);">
+            <h3 style="margin:0 0 12px;">Archivos recientes</h3>
+            <div id="recentFilesList" style="display:flex;flex-direction:column;gap:8px;">
+              ${recentFiles.map(f => UIComponentsMultimedia.FilePreviewCard(f)).join('')}
+            </div>
+          </div>` : `<div style="background:var(--bg-2);border-radius:var(--radius,12px);padding:16px;border:1px solid var(--border);color:var(--muted);text-align:center;">Aún no hay archivos cargados</div>`}
+        </div>
+
+        <div id="chatContainer" class="hidden" style="display:flex;flex-direction:column;">
+          ${UIComponentsMultimedia.AIStudyChat('aiStudyChat')}
+        </div>
+      </div>`;
+  }
+
+  function wireAIStudy() {
+    const s = Storage.get();
+    const user = s.users[s.currentUserId];
+    const chatContainer = document.getElementById('chatContainer');
+    let currentFileId = null;
+
+    UIComponentsMultimedia.wireFileUploader('aiStudyUpload', async (fileRecord) => {
+      try {
+        currentFileId = fileRecord.id;
+        chatContainer.style.display = 'flex';
+
+        UIComponentsMultimedia.clearChatMessages('aiStudyChat');
+        UIComponentsMultimedia.wireChatMessage('aiStudyChat',
+          `Archivo cargado: ${esc(fileRecord.fileName)}. Analizando contenido...`,
+          false);
+        UIComponentsMultimedia.showChatLoading('aiStudyChat');
+
+        const analysis = await GeminiProxy.analyzeFile(fileRecord, {
+          subject: 'Educación',
+          language: 'es'
+        });
+
+        UIComponentsMultimedia.removeChatLoading('aiStudyChat');
+
+        if (analysis.summary) {
+          UIComponentsMultimedia.wireChatMessage('aiStudyChat',
+            `<strong>Resumen:</strong>\n${esc(analysis.summary)}`, false);
+        }
+
+        if (analysis.questions && analysis.questions.length > 0) {
+          const qHtml = analysis.questions.map(q =>
+            `<div class="question-item"><strong>P:</strong> ${esc(q.text)}<br><strong>R:</strong> ${esc(q.answer || '')}</div>`
+          ).join('');
+          UIComponentsMultimedia.wireChatMessage('aiStudyChat', qHtml, false);
+        }
+
+        if (analysis.exercises && analysis.exercises.length > 0) {
+          const eHtml = analysis.exercises.map(e =>
+            `<div class="exercise-item"><strong>${esc(e.title)}:</strong> ${esc(e.prompt)}</div>`
+          ).join('');
+          UIComponentsMultimedia.wireChatMessage('aiStudyChat', eHtml, false);
+        }
+
+        UI.flash?.('Análisis completado. Haz preguntas en el chat.', 'success');
+      } catch (err) {
+        UIComponentsMultimedia.removeChatLoading('aiStudyChat');
+        UI.flash?.(err.message, 'error');
+      }
+    });
+
+    // Delete files handler
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-delete]')) {
+        const fileId = e.target.dataset.delete;
+        if (confirm('¿Eliminar este archivo?')) {
+          Files.delete(fileId);
+          App.go('ai-study');
+        }
+      }
+    });
+
+    // Chat send button
+    const sendBtn = document.getElementById('aiStudyChat-send');
+    const textarea = document.getElementById('aiStudyChat-textarea');
+
+    if (sendBtn && textarea) {
+      sendBtn.addEventListener('click', async () => {
+        const message = UIComponentsMultimedia.getChatInput('aiStudyChat').trim();
+        if (!message || !currentFileId) return;
+
+        UIComponentsMultimedia.wireChatMessage('aiStudyChat', message, true);
+        UIComponentsMultimedia.clearChatInput('aiStudyChat');
+        UIComponentsMultimedia.showChatLoading('aiStudyChat');
+
+        try {
+          const answer = await GeminiProxy.answerQuestion(
+            currentFileId,
+            message,
+            Storage.get().uploadedFiles[currentFileId]?.metadata?.analysis
+          );
+          UIComponentsMultimedia.removeChatLoading('aiStudyChat');
+          UIComponentsMultimedia.wireChatMessage('aiStudyChat', esc(answer), false);
+        } catch (err) {
+          UIComponentsMultimedia.removeChatLoading('aiStudyChat');
+          UI.flash?.(err.message, 'error');
+        }
+      });
+
+      textarea.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendBtn.click();
+        }
+      });
+    }
+
+    // Microphone button
+    const micBtn = document.getElementById('aiStudyChat-mic');
+    if (micBtn) {
+      let isRecording = false;
+      micBtn.addEventListener('click', async () => {
+        try {
+          if (!isRecording) {
+            isRecording = true;
+            micBtn.textContent = '⏹ Detener';
+            micBtn.style.background = 'rgba(239, 68, 68, 0.1)';
+            await AudioTranscriber.startRecording((state) => {
+              if (state === 'stopped') isRecording = false;
+            });
+          } else {
+            isRecording = false;
+            micBtn.textContent = '🎤';
+            micBtn.style.background = '';
+            const audioBlob = await AudioTranscriber.stopRecording();
+            UIComponentsMultimedia.showChatLoading('aiStudyChat');
+
+            const { text } = await AudioTranscriber.transcribe(audioBlob, 'es-ES');
+            UIComponentsMultimedia.removeChatLoading('aiStudyChat');
+            UIComponentsMultimedia.wireChatMessage('aiStudyChat', text, true);
+
+            // Automatic send after transcription
+            UIComponentsMultimedia.showChatLoading('aiStudyChat');
+            if (currentFileId) {
+              const answer = await GeminiProxy.answerQuestion(
+                currentFileId,
+                text,
+                Storage.get().uploadedFiles[currentFileId]?.metadata?.analysis
+              );
+              UIComponentsMultimedia.removeChatLoading('aiStudyChat');
+              UIComponentsMultimedia.wireChatMessage('aiStudyChat', esc(answer), false);
+            }
+          }
+        } catch (err) {
+          isRecording = false;
+          micBtn.textContent = '🎤';
+          micBtn.style.background = '';
+          UIComponentsMultimedia.removeChatLoading('aiStudyChat');
+          UI.flash?.(err.message, 'error');
+        }
+      });
+    }
+  }
+
   return {
     screens: {
       'pending-approval': { render: screenPendingApproval, wire: wirePendingApproval },
@@ -914,7 +1341,8 @@ const UIStudent = (() => {
       achievements: { render: screenAchievements, wire: () => {} },
       leaderboard:  { render: screenLeaderboard,  wire: wireLeaderboard },
       pomodoro:     { render: screenPomodoro,     wire: wirePomodoro },
-      profile:      { render: screenProfile,      wire: wireProfile }
+      profile:      { render: screenProfile,      wire: wireProfile },
+      'ai-study':   { render: screenAIStudy,      wire: wireAIStudy }
     }
   };
 })();
