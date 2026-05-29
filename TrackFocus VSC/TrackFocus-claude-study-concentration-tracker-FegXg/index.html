@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="assets/styles-gamification.css" />
   <link rel="stylesheet" href="assets/styles-charts.css" />
   <link rel="stylesheet" href="assets/styles-landing.css" />
+  <link rel="stylesheet" href="assets/styles-multimedia.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -45,7 +46,15 @@
     8. Roles (usa Storage, referencia App en tiempo de ejecución)
     9. App (router final, arranca la aplicación)
   -->
-  <script defer src="/_vercel/insights/script.js"></script>
+  <script>
+    // Solo cargar analytics de Vercel en producción (no en localhost)
+    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      var vs = document.createElement('script');
+      vs.defer = true;
+      vs.src = '/_vercel/insights/script.js';
+      document.head.appendChild(vs);
+    }
+  </script>
   <!-- Cloud: configuración Supabase y wrapper de sync. Deben cargarse ANTES de storage.js. -->
   <script src="js/supabase-config.js"></script>
   <script src="js/cloud.js"></script>
@@ -63,6 +72,13 @@
   <script src="js/auth.js"></script>
   <script src="js/sessions.js"></script>
   <script src="js/ui.js"></script>
+  <!-- Módulos multimedia para AI Study -->
+  <script src="js/files.js"></script>
+  <script src="js/gemini-proxy.js"></script>
+  <script src="js/ai-chat-proxy.js"></script>
+  <script src="js/audio-transcriber.js"></script>
+  <script src="js/ui-components-multimedia.js"></script>
+  <!-- UI roles -->
   <script src="js/ui-student.js"></script>
   <script src="js/ui-teacher.js"></script>
   <script src="js/ui-admin.js"></script>
