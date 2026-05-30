@@ -939,3 +939,133 @@ button.danger-ghost:hover {
     max-width: 92%;
   }
 }
+/* ================================================
+   Barra Pomodoro Global — fija debajo del topbar
+   ================================================ */
+
+.pom-bar {
+  position: fixed;
+  top: 58px;
+  left: 0;
+  right: 0;
+  z-index: 9997;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 24px;
+  background: var(--bg-2);
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 2px 16px rgba(0,0,0,.25);
+  flex-wrap: wrap;
+}
+
+.pom-bar.hidden { display: none; }
+
+.pom-bar-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 72px;
+}
+.pom-bar-timer span:first-child {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+.pom-bar-timer span:last-child {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.pom-bar-center {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pom-bar-center select {
+  font-size: 11px;
+  padding: 3px 8px;
+  max-width: 160px;
+}
+.pom-bar-controls {
+  display: flex;
+  gap: 4px;
+}
+.pom-bar-controls button {
+  font-size: 11px;
+  padding: 3px 9px;
+}
+
+.pom-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+.pom-bar-right label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.pom-bar-right input {
+  width: 44px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+/* Compensar la barra Pomodoro cuando está visible */
+body.pom-active .container {
+  padding-top: 60px;
+}
+
+/* ================================================
+   Chat multimodal — chips de archivos + mic
+   ================================================ */
+
+.chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+  min-height: 0;
+}
+.chat-attachments:empty { display: none; }
+
+.chat-attach-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--muted-2);
+}
+.chat-attach-chip button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 1;
+}
+.chat-attach-chip button:hover { color: var(--bad); }
+
+/* Botón mic */
+.chat-mic-btn { transition: color .15s; }
+.chat-mic-btn.recording {
+  color: var(--bad) !important;
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
