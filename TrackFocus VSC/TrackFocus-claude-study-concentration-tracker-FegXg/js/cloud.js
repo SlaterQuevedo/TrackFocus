@@ -63,6 +63,19 @@ const Cloud = (() => {
       created_at: r.createdAt,
       resolved_at: r.resolvedAt || null,
       resolved_by: r.resolvedBy || null
+    }),
+    uploadedFile: f => ({
+      id: f.id,
+      user_id: f.userId,
+      file_name: f.fileName,
+      file_type: f.fileType,
+      file_size: f.fileSize,
+      storage_path: f.storagePath,
+      uploaded_at: f.uploadedAt,
+      session_id: f.sessionId || null,
+      classroom_id: f.classroomId || null,
+      metadata: f.metadata || {},
+      created_at: f.createdAt
     })
   };
 
@@ -124,6 +137,19 @@ const Cloud = (() => {
       createdAt: r.created_at,
       resolvedAt: r.resolved_at,
       resolvedBy: r.resolved_by
+    }),
+    uploadedFile: r => ({
+      id: r.id,
+      userId: r.user_id,
+      fileName: r.file_name,
+      fileType: r.file_type,
+      fileSize: r.file_size,
+      storagePath: r.storage_path,
+      uploadedAt: r.uploaded_at,
+      sessionId: r.session_id,
+      classroomId: r.classroom_id,
+      metadata: r.metadata || {},
+      createdAt: r.created_at
     })
   };
 
@@ -134,16 +160,17 @@ const Cloud = (() => {
   async function bootstrap() {
     if (!window.SB) throw new Error('Supabase no está configurado.');
 
-    const [usersR, schoolsR, classroomsR, sessionsR, customR, requestsR] = await Promise.all([
+    const [usersR, schoolsR, classroomsR, sessionsR, customR, requestsR, filesR] = await Promise.all([
       window.SB.from('users').select('*'),
       window.SB.from('schools').select('*'),
       window.SB.from('classrooms').select('*'),
       window.SB.from('study_sessions').select('*'),
       window.SB.from('custom_subjects').select('*'),
-      window.SB.from('classroom_requests').select('*')
+      window.SB.from('classroom_requests').select('*'),
+      window.SB.from('uploaded_files').select('*')
     ]);
 
-    for (const r of [usersR, schoolsR, classroomsR, sessionsR, customR, requestsR]) {
+    for (const r of [usersR, schoolsR, classroomsR, sessionsR, customR, requestsR, filesR]) {
       if (r.error) throw new Error('Cloud bootstrap: ' + r.error.message);
     }
 
@@ -154,6 +181,7 @@ const Cloud = (() => {
       schools: {},
       classrooms: {},
       sessions: [],
+      uploadedFiles: {},
       subjectsByInstitution: { colegio: ['Matemática','Comunicación','Física','Química','Inglés','Historia'] },
       customSubjects: {},
       students: {},
@@ -168,6 +196,7 @@ const Cloud = (() => {
       if (!state.customSubjects[row.email]) state.customSubjects[row.email] = [];
       state.customSubjects[row.email].push(row.subject);
     });
+    (filesR.data || []).forEach(r => { state.uploadedFiles[r.id] = fromDb.uploadedFile(r); });
     (requestsR.data || []).forEach(r => { state.classroomRequests[r.id] = fromDb.request(r); });
 
     return state;
@@ -197,8 +226,7 @@ const Cloud = (() => {
       id  => ops.push(window.SB.from('classrooms').delete().eq('id', id)));
 
     // SESSIONS (array)
-    const beforeSids = new Set(before.sessions.map(s => s.id));
-    const afterSids  = new Set(after.sessions.map(s => s.id));
+    const afterSids = new Set(after.sessions.map(s => s.id));
     for (const s of after.sessions) {
       const prev = before.sessions.find(x => x.id === s.id);
       if (!prev) ops.push(window.SB.from('study_sessions').insert(toDb.session(s)));
@@ -224,6 +252,11 @@ const Cloud = (() => {
           ops.push(window.SB.from('custom_subjects').delete().eq('email', email).eq('subject', sub));
       }
     }
+
+    // UPLOADED FILES
+    diffMap(before.uploadedFiles, after.uploadedFiles,
+      row => ops.push(window.SB.from('uploaded_files').upsert(toDb.uploadedFile(row))),
+      id  => ops.push(window.SB.from('uploaded_files').delete().eq('id', id)));
 
     // CLASSROOM REQUESTS
     diffMap(before.classroomRequests, after.classroomRequests,
@@ -257,8 +290,9 @@ const Cloud = (() => {
     if (!window.SB || _channel) return;
     _channel = window.SB
       .channel('trackfocus-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'study_sessions' }, onChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' },          onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'study_sessions' }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'uploaded_files' },  onChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'classroom_requests' }, onChange)
       .subscribe();
   }

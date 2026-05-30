@@ -45,7 +45,7 @@ const Gamification = (() => {
     }
     const prevXp = current.xpRequired;
     const nextXp = next ? next.xpRequired : current.xpRequired;
-    const progress = next ? Math.min(100, ((xp - prevXp) / (nextXp - prevXp)) * 100) : 100;
+    const progress = next ? Math.min(100, Math.max(0, ((xp - prevXp) / (nextXp - prevXp)) * 100)) : 100;
     return { current, next, progress: Math.round(progress), xp };
   }
 
@@ -96,17 +96,12 @@ const Gamification = (() => {
 
     const sessions = s.sessions.filter(se => se.email === userId);
     const existing = new Set(user.gamification.badges);
-    const newBadges = [];
+    const toEarn = [];
 
     function earn(badgeId) {
       if (!existing.has(badgeId)) {
         existing.add(badgeId);
-        newBadges.push(BADGES.find(b => b.id === badgeId));
-        Storage.set(st => {
-          if (!st.users[userId].gamification.badges.includes(badgeId)) {
-            st.users[userId].gamification.badges.push(badgeId);
-          }
-        });
+        toEarn.push(badgeId);
       }
     }
 
@@ -140,7 +135,17 @@ const Gamification = (() => {
     }).length;
     if (earlyBirdSessions >= 10) earn('madrugador');
 
-    return newBadges.filter(Boolean);
+    if (toEarn.length > 0) {
+      Storage.set(st => {
+        toEarn.forEach(badgeId => {
+          if (!st.users[userId].gamification.badges.includes(badgeId)) {
+            st.users[userId].gamification.badges.push(badgeId);
+          }
+        });
+      });
+    }
+
+    return toEarn.map(id => BADGES.find(b => b.id === id)).filter(Boolean);
   }
 
   function awardSession(userId, record) {
@@ -158,15 +163,33 @@ const Gamification = (() => {
     );
     if (todaySessions.length >= 3) xpEarned += XP_VALUES.PERFECT_DAY;
 
-    // Actualizar racha antes de calcular bono
-    const streak = updateStreak(userId);
+    // Calcular racha sin mutar estado aún
+    const lastDate = user.gamification.lastStudyDate;
+    let streak = user.gamification.streak || 0;
+    if (!lastDate) {
+      streak = 1;
+    } else if (lastDate !== todayStr) {
+      const diffDays = Math.round((new Date(todayStr) - new Date(lastDate)) / 86400000);
+      streak = diffDays === 1 ? streak + 1 : 1;
+    }
+
     const streakBonus = Math.min(50, streak * XP_VALUES.STREAK_BONUS);
     xpEarned += streakBonus;
 
-    const prevLevel = Storage.get().users[userId].gamification.level;
-    Storage.set(st => { st.users[userId].gamification.xp += xpEarned; });
-    recalculateLevel(userId);
-    const newLevel = Storage.get().users[userId].gamification.level;
+    // Calcular nuevo XP y nivel
+    const prevLevel = user.gamification.level || 1;
+    const newXp = (user.gamification.xp || 0) + xpEarned;
+    let newLevel = 1;
+    for (const l of LEVELS) { if (newXp >= l.xpRequired) newLevel = l.level; }
+
+    // Un solo Storage.set para racha + XP + nivel
+    Storage.set(st => {
+      const g = st.users[userId].gamification;
+      g.streak = streak;
+      g.lastStudyDate = todayStr;
+      g.xp = newXp;
+      g.level = newLevel;
+    });
 
     const newBadges = checkBadges(userId);
     return { xpEarned, newBadges, levelUp: newLevel > prevLevel, newLevel };

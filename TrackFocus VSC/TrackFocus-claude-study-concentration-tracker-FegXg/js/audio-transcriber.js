@@ -1,4 +1,4 @@
-// Transcripción de audio usando Web Audio API + Gemini API.
+// Transcripción de audio usando Web Audio API + API de transcripción backend.
 const AudioTranscriber = (() => {
 
   let mediaRecorder = null;

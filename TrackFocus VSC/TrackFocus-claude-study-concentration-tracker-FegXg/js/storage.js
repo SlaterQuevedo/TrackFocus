@@ -13,6 +13,8 @@ const Storage = (() => {
     schools: {},
     classrooms: {},
     sessions: [],
+    uploadedFiles: {},
+    availableRoles: [],  // NEW: roles disponibles para el usuario actual
     subjectsByInstitution: {
       colegio: ['Matemática', 'Comunicación', 'Física', 'Química', 'Inglés', 'Historia']
     },
@@ -44,6 +46,22 @@ const Storage = (() => {
       return state;
     }
     state = await Cloud.bootstrap();
+
+    // NEW: Cargar availableRoles para el usuario actual
+    const activeRole = Auth.getActiveRole?.();
+    if (activeRole?.email) {
+      try {
+        const rolesRes = await window.SB
+          .from('user_roles')
+          .select('*')
+          .eq('email', activeRole.email);
+        state.availableRoles = rolesRes.data || [];
+      } catch (err) {
+        console.warn('[Storage] Error loading available roles:', err);
+        state.availableRoles = [];
+      }
+    }
+
     booted = true;
     return state;
   }

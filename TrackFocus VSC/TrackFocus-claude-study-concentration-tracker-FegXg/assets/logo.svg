@@ -1,50 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <defs>
-    <linearGradient id="lG" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+    <linearGradient id="logoGrad" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#C89B6D"/>
       <stop offset="100%" stop-color="#8B5CF6"/>
     </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
   </defs>
 
-  <!-- Three concentric arcs: gap at upper-right (310° to 50°, clockwise) -->
-  <!-- Inner arc r=5.5 -->
-  <path d="M 23.54 24.21 A 5.5 5.5 0 1 1 23.54 15.79"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Outer arc r=18 -->
+  <path d="M 42.73 43.27 A 18 18 0 1 1 42.73 20.73"
+        stroke="url(#logoGrad)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#shadow)"/>
 
-  <!-- Middle arc r=8.5 -->
-  <path d="M 25.46 26.51 A 8.5 8.5 0 1 1 25.46 13.49"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Middle arc r=12 -->
+  <path d="M 38.49 38.49 A 12 12 0 1 1 38.49 25.51"
+        stroke="url(#logoGrad)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#shadow)"/>
 
-  <!-- Outer arc r=11.5 -->
-  <path d="M 27.39 28.81 A 11.5 11.5 0 1 1 27.39 11.19"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Inner arc r=6 -->
+  <path d="M 34.24 34.24 A 6 6 0 1 1 34.24 29.76"
+        stroke="url(#logoGrad)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#shadow)"/>
 
-  <!-- Radiating tick-bars in the gap (angles: 320°, 333°, 346°, 0°, 13°, 26°, 39°) -->
-  <!-- 320° -->
-  <line x1="29.58" y1="11.96" x2="31.40" y2="10.49"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+  <!-- Radiating lines (right side) - varied lengths -->
+  <!-- Line 1: 340° -->
+  <line x1="44.54" y1="20.00" x2="50.20" y2="16.00"
+        stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" filter="url(#shadow)"/>
 
-  <!-- 333° -->
-  <line x1="31.14" y1="14.32" x2="34.50" y2="12.57"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+  <!-- Line 2: 350° -->
+  <line x1="46.00" y1="18.50" x2="53.00" y2="15.50"
+        stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" filter="url(#shadow)"/>
 
-  <!-- 346° -->
-  <line x1="32.13" y1="16.97" x2="36.70" y2="15.82"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+  <!-- Line 3: 0° (longest) -->
+  <line x1="47.00" y1="17.00" x2="56.00" y2="16.50"
+        stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" filter="url(#shadow)"/>
 
-  <!-- 0° (longest) -->
-  <line x1="32.50" y1="20.00" x2="37.20" y2="20.00"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+  <!-- Line 4: 10° -->
+  <line x1="47.20" y1="16.00" x2="55.50" y2="11.50"
+        stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" filter="url(#shadow)"/>
 
-  <!-- 13° -->
-  <line x1="32.18" y1="22.81" x2="36.70" y2="24.18"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+  <!-- Line 5: 20° -->
+  <line x1="46.50" y1="14.50" x2="53.50" y2="8.00"
+        stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" filter="url(#shadow)"/>
 
-  <!-- 26° -->
-  <line x1="31.24" y1="25.48" x2="34.50" y2="27.43"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+  <!-- Line 6: 30° -->
+  <line x1="44.80" y1="12.80" x2="50.50" y2="5.50"
+        stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" filter="url(#shadow)"/>
 
-  <!-- 39° -->
-  <line x1="29.71" y1="27.86" x2="31.40" y2="29.51"
-        stroke="url(#lG)" stroke-width="2" stroke-linecap="square"/>
+  <!-- Line 7: 40° -->
+  <line x1="42.50" y1="11.50" x2="47.00" y2="3.50"
+        stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" filter="url(#shadow)"/>
 </svg>

@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: rgba(14,18,25,0.85);
+  background: var(--panel);
   border: 1px solid rgba(200,155,109,0.18);
   border-radius: 20px;
   padding: 22px 24px;
@@ -330,6 +330,42 @@ tr.self td { background: rgba(200,155,109,0.07) !important; }
 @keyframes slideUp {
   from { transform: translateY(20px); opacity: 0; }
   to   { transform: translateY(0); opacity: 1; }
+}
+
+/* ============================================================
+   LIGHT THEME — GAMIFICATION ELEMENTS
+   ============================================================ */
+
+html[data-theme="light"] .student-hero {
+  background: #FFFFFF;
+  border-color: rgba(200, 155, 109, 0.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="light"] .streak-widget {
+  border-left-color: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .xp-bar-wrap {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .badge-card {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="light"] .rank-badge {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+html[data-theme="light"] .xp-toast {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(200, 155, 109, 0.2);
+  color: #111827;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
 }
 
 @keyframes fadeOut {

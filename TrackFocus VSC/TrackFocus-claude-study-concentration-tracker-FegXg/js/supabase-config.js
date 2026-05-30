@@ -43,3 +43,11 @@ if (!_ready) {
     '  Sigue las instrucciones de SETUP.md.'
   );
 }
+
+// ============================================================
+// GEMINI API KEY — Para el Tutor IA
+// Obtén tu clave GRATIS en: https://aistudio.google.com/apikey
+// Reemplaza 'AIzaSy...' con tu clave real
+// ============================================================
+
+window.GEMINI_API_KEY = 'AIzaSyAMsIVSiTkRhWytA3OCipSDKMqBS97mFw0'; // ← Pega tu API key de Gemini aquí

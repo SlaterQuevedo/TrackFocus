@@ -5,6 +5,12 @@ const Auth = (() => {
 
   const ADMIN_PASSWORD = 'Sl@terQvz#1';
 
+  // Official super admin emails (email-gated access)
+  const SUPER_ADMIN_EMAILS = [
+    'trackfocus.owner@gmail.com',
+    'trackfocus.support@gmail.com'
+  ];
+
   // Clave en sessionStorage para recordar la intención de rol durante el redirect OAuth.
   const ROLE_INTENT_KEY = 'tf.roleIntent';
 
@@ -31,10 +37,33 @@ const Auth = (() => {
   }
 
   // Obtiene la sesión actual (post-redirect o de visitas anteriores).
+  // Ahora también retorna availableRoles + hasMultipleRoles.
   async function getSession() {
     if (!window.SB) return null;
     const { data: { session } } = await window.SB.auth.getSession();
-    return session;
+    if (!session) return null;
+
+    const user = await fetchProfile(session.user.email.toLowerCase());
+    if (!user) return { session };
+
+    // Consultar user_roles para este usuario
+    const rolesRes = await window.SB
+      .from('user_roles')
+      .select('*')
+      .eq('email', session.user.email.toLowerCase());
+
+    const availableRoles = rolesRes.data || [];
+    const hasMultipleRoles = availableRoles.length > 1;
+    const userEmail = (user.email || session.user.email).toLowerCase();
+    const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(userEmail);
+
+    return {
+      session,
+      user,
+      availableRoles,
+      hasMultipleRoles,
+      isSuperAdmin
+    };
   }
 
   // Recupera el perfil de public.users (creado por el trigger SQL).
@@ -105,17 +134,50 @@ const Auth = (() => {
         st.schools[school.id].adminIds.push(email);
       }
     });
+
+    // Insertar en user_roles table (NEW)
+    if (window.SB) {
+      try {
+        await window.SB.from('user_roles').insert({
+          user_id: email,
+          email: email,
+          role: 'teacher',
+          school_id: school.id
+        });
+      } catch (err) {
+        console.warn('[Auth] Failed to insert teacher role:', err);
+        // No lanzar error — continuamos de todas formas
+      }
+    }
+
     return Storage.get().users[email];
   }
 
   // ----- Super Admin: contraseña para promover al usuario actual -----
 
   async function promoteToSuperAdmin(email, password) {
-    if (password !== ADMIN_PASSWORD) throw new Error('Contraseña incorrecta.');
-    Storage.set(st => {
-      if (st.users[email]) st.users[email].role = 'super_admin';
-    });
-    return Storage.get().users[email];
+    throw new Error(
+      'Admin promotion is disabled. ' +
+      'Only official administrator emails can access admin dashboard.'
+    );
+  }
+
+  // ----- Active Role Management (session-based multi-role) -----
+
+  // Guardar el rol activo en sessionStorage
+  // roleEntry = { id, user_id, email, role, school_id, classroom_id, created_at }
+  function setActiveRole(roleEntry) {
+    if (!roleEntry) {
+      sessionStorage.removeItem('ACTIVE_ROLE');
+      return;
+    }
+    sessionStorage.setItem('ACTIVE_ROLE', JSON.stringify(roleEntry));
+  }
+
+  // Recuperar el rol activo desde sessionStorage
+  function getActiveRole() {
+    const stored = sessionStorage.getItem('ACTIVE_ROLE');
+    return stored ? JSON.parse(stored) : null;
   }
 
   // ----- Logout -----
@@ -126,6 +188,13 @@ const Auth = (() => {
     }
     Cloud.unsubscribeRealtime?.();
     Storage.clear();
+    sessionStorage.removeItem('ACTIVE_ROLE');
+  }
+
+  // ----- Helper: Return super admin email list for validation -----
+
+  function getSuperAdminEmails() {
+    return SUPER_ADMIN_EMAILS;
   }
 
   function generateSchoolCode() {
@@ -156,6 +225,9 @@ const Auth = (() => {
     promoteToSuperAdmin,
     logout,
     generateSchoolCode,
+    setActiveRole,
+    getActiveRole,
+    getSuperAdminEmails,
     // legacy:
     loginOrRegisterStudent, loginTeacher, loginSuperAdmin
   };
