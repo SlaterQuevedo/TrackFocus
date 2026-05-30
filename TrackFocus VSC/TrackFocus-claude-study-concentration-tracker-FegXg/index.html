@@ -1,3 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrackFocus — Plataforma Educativa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/styles-gamification.css" />
+  <link rel="stylesheet" href="assets/styles-charts.css" />
+  <link rel="stylesheet" href="assets/styles-landing.css" />
+  <link rel="stylesheet" href="assets/styles-multimedia.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/logo.svg" class="brand-logo" alt="TrackFocus">
+      <span>TrackFocus</span>
+    </div>
+    <nav id="topnav" class="topnav hidden"></nav>
+    <div id="userbox" class="userbox hidden">
+      <span id="userLabel"></span>
+      <button id="logoutBtn" class="ghost">Salir</button>
+    </div>
+  </header>
+
   <!-- Barra Pomodoro global — visible en todas las páginas cuando está activo -->
   <div id="pomBar" class="pom-bar hidden">
     <div class="pom-bar-timer">
@@ -47,6 +77,8 @@
       document.head.appendChild(vs);
     }
   </script>
+  <!-- Theme system (load before any UI rendering) -->
+  <script src="js/theme.js"></script>
   <!-- Cloud: configuración Supabase y wrapper de sync. Deben cargarse ANTES de storage.js. -->
   <script src="js/supabase-config.js"></script>
   <script src="js/cloud.js"></script>
@@ -76,5 +108,12 @@
   <script src="js/ui-admin.js"></script>
   <script src="js/roles.js"></script>
   <script src="js/app.js"></script>
+  <script>
+    // Initialize theme - force light mode by default
+    if (!localStorage.getItem('tf-theme')) {
+      localStorage.setItem('tf-theme', 'light');
+    }
+    Theme.init();
+  </script>
 </body>
 </html>
