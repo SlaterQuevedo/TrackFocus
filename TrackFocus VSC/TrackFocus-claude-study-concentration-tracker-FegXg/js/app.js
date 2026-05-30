@@ -310,41 +310,556 @@ const App = (() => {
     }
 
     // Si tiene un solo rol: auto-seleccionar
-    if (!Auth.getActiveRole()) {
-      if (authSession.availableRoles?.length === 1) {
-        Auth.setActiveRole(authSession.availableRoles[0]);
+    if (authSession.availableRoles?.length === 1 && !Auth.getActiveRole()) {
+      Auth.setActiveRole(authSession.availableRoles[0]);
+    }
+
+    // 3. Trae todo el estado desde Supabase y monta cache local
+    try {
+      await Storage.bootstrap();
+    } catch (e) {
+      console.error('[App] bootstrap error:', e);
+      UI.flash?.('No se pudieron cargar tus datos. Reintenta.', 'error');
+      return go('welcome');
+    }
+
+    Storage.setCurrent((authSession.user?.email || authSession.session?.user?.email || '').toLowerCase());
+
+    // Suscribirse a cambios remotos (multi-dispositivo)
+    Storage.bindRealtime(() => {
+      // Cuando llegan cambios, repintar la pantalla actual
+      if (_current && _current !== 'welcome' && _current !== 'role-selector') go(_current);
+    });
+
+    let user;
+    try {
+      user = Roles.current();
+    } catch (e) {
+      console.error('[App] Roles.current() error:', e);
+      UI.flash?.('Error de autenticación. Reintenta.', 'error');
+      return go('welcome');
+    }
+    if (!user) {
+      console.warn('[App] No user from Roles.current()');
+      return go('welcome');
+    }
+    console.log('[App] Current user:', { email: user.email, role: user.role });
+
+    // 3. ¿Hay intención de rol pendiente del click pre-OAuth?
+    const intent = Auth.getRoleIntent();
+
+    // Si es admin pendiente, mostrar pantalla de contraseña (NO para super_admin oficial)
+    if (intent === 'admin' && user.role !== 'super_admin') return go('admin-promote');
+    if (intent === 'teacher' && user.role === 'student' && !user.schoolId) return go('teacher-promote');
+
+    // 4. Rutado por rol
+    if (user.role === 'super_admin') return go('admin-dashboard');
+    if (user.role === 'teacher')     return go('teacher-dashboard');
+    if (user.schoolId && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
+      return go('pending-approval');
+    }
+    if (!user.institutionType && !user.schoolId) return go('student-onboarding');
+    if (!user.institutionType) return go('institution');
+    return go('dashboard');
+  }
+
+  // ---- Pantalla: Selector de rol (multi-rol) ----
+  function screenRoleSelector() {
+    const availableRoles = JSON.parse(sessionStorage.getItem('_AVAILABLE_ROLES') || '[]');
+    if (!availableRoles.length) {
+      return `<div class="alert error">No tienes roles disponibles. <a href="#" onclick="App.go('welcome'); return false;" style="color:var(--accent);">Volver</a></div>`;
+    }
+
+    const roleIcons = { student: '🎒', teacher: '👩‍🏫', super_admin: '🛡️' };
+    const roleLabels = { student: 'Estudiante', teacher: 'Docente', super_admin: 'Administrador' };
+
+    return `
+      <div style="max-width:600px;margin:80px auto;text-align:center;">
+        <h1>¿Cómo deseas ingresar?</h1>
+        <p class="muted" style="font-size:15px;margin-bottom:32px;">Tienes acceso a múltiples roles. Elige cuál deseas usar en esta sesión.</p>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${availableRoles.map((role, idx) => {
+            const contextInfo = role.school_id ? `colegio: ${role.school_id}` : role.classroom_id ? `aula: ${role.classroom_id}` : '';
+            return `
+              <div class="card" style="padding:24px;text-align:center;cursor:pointer;transition:all 0.2s;" data-role-idx="${idx}">
+                <div style="font-size:36px;margin-bottom:12px;">${roleIcons[role.role] || '👤'}</div>
+                <h3 style="margin:0 0 4px;">${roleLabels[role.role] || role.role}</h3>
+                ${contextInfo ? `<p class="muted" style="margin:0;font-size:12px;">${contextInfo}</p>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <button class="ghost" style="margin-top:24px;" onclick="Auth.setActiveRole(null); sessionStorage.removeItem('_AVAILABLE_ROLES'); App.go('welcome'); return false;">Volver a login</button>
+      </div>`;
+  }
+
+  function wireRoleSelector() {
+    const availableRoles = JSON.parse(sessionStorage.getItem('_AVAILABLE_ROLES') || '[]');
+    document.querySelectorAll('[data-role-idx]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.roleIdx);
+        const roleEntry = availableRoles[idx];
+        Auth.setActiveRole(roleEntry);
+        sessionStorage.removeItem('_AVAILABLE_ROLES');
+        Storage.clear();
+        App.go('dashboard');
+      });
+    });
+  }
+
+  // ---- Pantalla de bienvenida premium (3 roles) ----
+  function screenWelcome() {
+    const svgStudent = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`;
+    const svgTeacher = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`;
+    const svgAdmin   = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+    const svgArrow   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+
+    return `
+    <div class="lp">
+      <div class="lp-glow lp-glow-1"></div>
+      <div class="lp-glow lp-glow-2"></div>
+      <div class="lp-glow lp-glow-3"></div>
+
+      <header class="lp-header">
+        <div class="lp-brand">
+          <img src="assets/logo.svg" class="lp-brand-img" alt="TrackFocus">
+          <span>TrackFocus</span>
+        </div>
+        <div class="lp-header-actions">
+          <button class="theme-toggle lp-theme-btn" onclick="Theme.toggle()" title="Cambiar tema">🌙</button>
+          <button class="lp-header-btn" id="lpScrollCards">Iniciar sesión</button>
+        </div>
+      </header>
+
+      <div class="lp-hero">
+        <div class="lp-pill">
+          <span class="lp-pill-dot"></span>
+          Plataforma Educativa Inteligente
+        </div>
+        <h1 class="lp-title">Convierte tu<br>esfuerzo en resultados</h1>
+        <p class="lp-subtitle">Mejora tu concentración, construye disciplina y descubre la mejor forma de estudiar para alcanzar tus objetivos académicos.</p>
+
+        <div class="lp-stats">
+          <div class="lp-stat">
+            <span class="lp-stat-n" data-count="100" data-prefix="+">+100</span>
+            <span class="lp-stat-l">Horas de progreso registradas</span>
+          </div>
+          <div class="lp-stat-sep"></div>
+          <div class="lp-stat">
+            <span class="lp-stat-n" data-count="20">20</span>
+            <span class="lp-stat-l">Niveles para superar</span>
+          </div>
+          <div class="lp-stat-sep"></div>
+          <div class="lp-stat">
+            <span class="lp-stat-n" data-count="11">11</span>
+            <span class="lp-stat-l">Logros para desbloquear</span>
+          </div>
+        </div>
+
+        <div class="lp-cards reveal">
+          <div class="lp-card lp-card--gold reveal" data-role="student" data-delay="0">
+            <div class="lp-icon-ring">${svgStudent}</div>
+            <h3>QUIERO MEJORAR MI RENDIMIENTO</h3>
+            <p>Registra sesiones, desarrolla hábitos y descubre cuándo estudias mejor.</p>
+            <div class="lp-card-foot">
+              <span style="font-size:12px;color:#52525B;">Solo Gmail</span>
+              <button class="lp-arrow-btn" tabindex="-1">${svgArrow}</button>
+            </div>
+          </div>
+
+          <div class="lp-card lp-card--purple reveal" data-role="teacher" data-delay="100">
+            <div class="lp-icon-ring">${svgTeacher}</div>
+            <h3>QUIERO MONITOREAR A MIS ESTUDIANTES</h3>
+            <p>Analiza el progreso, detecta riesgos y acompaña el desarrollo académico.</p>
+            <div class="lp-card-foot">
+              <span style="font-size:12px;color:#52525B;">Requiere código</span>
+              <button class="lp-arrow-btn" tabindex="-1">${svgArrow}</button>
+            </div>
+          </div>
+
+          <div class="lp-card lp-card--blue reveal" data-role="admin" data-delay="200">
+            <div class="lp-icon-ring">${svgAdmin}</div>
+            <h3>GESTIONAR MI INSTITUCIÓN</h3>
+            <p>Centraliza estadísticas, usuarios y rendimiento académico desde un solo lugar.</p>
+            <div class="lp-card-foot">
+              <span style="font-size:12px;color:#52525B;">Acceso restringido</span>
+              <button class="lp-arrow-btn" tabindex="-1">${svgArrow}</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="authForm" class="lp-form-wrap hidden"></div>
+
+        <div class="lp-features reveal">
+          <div class="lp-feat reveal" data-delay="0">
+            <div class="lp-feat-icon lp-feat-icon--gold">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <h4>Gamificación</h4>
+            <p>XP, niveles, badges y ranking por aula para mantener la motivación alta.</p>
+          </div>
+          <div class="lp-feat reveal" data-delay="100">
+            <div class="lp-feat-icon lp-feat-icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <h4>Analytics</h4>
+            <p>Detección automática de patrones y alertas de rendimiento en tiempo real.</p>
+          </div>
+          <div class="lp-feat reveal" data-delay="200">
+            <div class="lp-feat-icon lp-feat-icon--blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <h4>Pomodoro</h4>
+            <p>Timer con ciclos automáticos y análisis post-sesión de productividad.</p>
+          </div>
+        </div>
+
+        <div class="lp-ai-demo reveal">
+          <div class="lp-ai-demo__header">
+            <div class="lp-ai-badge"><span>🧠</span> TrackFocus Intelligence</div>
+            <h2 class="lp-ai-demo__title">Así estudias con TrackFocus</h2>
+            <p class="lp-ai-demo__subtitle">Aprende paso a paso con ayuda inteligente. La IA te guía, te hace preguntas y te ayuda a comprender mejor los temas que estudias.</p>
+          </div>
+
+          <div class="lp-ai-demo__content">
+            <div class="lp-ai-chat">
+              <div class="lp-ai-chat__bar">
+                <span class="lp-ai-dot lp-ai-dot--red"></span>
+                <span class="lp-ai-dot lp-ai-dot--yellow"></span>
+                <span class="lp-ai-dot lp-ai-dot--green"></span>
+                <span class="lp-ai-chat__label">TrackFocus Intelligence · Demo</span>
+              </div>
+              <div class="lp-ai-chat__body">
+                <div class="lp-ai-msg lp-ai-msg--user">
+                  <div class="lp-ai-bubble">¿Cómo resuelvo una ecuación cuadrática?</div>
+                </div>
+                <div class="lp-ai-msg lp-ai-msg--ai">
+                  <div class="lp-ai-avatar">🧠</div>
+                  <div class="lp-ai-msg__col">
+                    <div class="lp-ai-bubble lp-ai-bubble--ai">Primero identifica los coeficientes a, b y c.</div>
+                    <div class="lp-ai-bubble lp-ai-bubble--ai">Observa este ejemplo:</div>
+                    <div class="lp-ai-code">x² + 5x + 6 = 0</div>
+                    <div class="lp-ai-bubble lp-ai-bubble--ai">Ahora intenta resolverlo tú.</div>
+                    <div class="lp-ai-bubble lp-ai-bubble--ai lp-ai-bubble--accent">¿Qué dos números multiplicados dan 6 y sumados dan 5?</div>
+                  </div>
+                </div>
+              </div>
+              <div class="lp-ai-checks">
+                <span class="lp-ai-check">✅ No te da la respuesta completa</span>
+                <span class="lp-ai-check">✅ Te guía paso a paso</span>
+                <span class="lp-ai-check">✅ Genera ejercicios según tu grado</span>
+                <span class="lp-ai-check">✅ Analiza tu progreso y concentración</span>
+              </div>
+            </div>
+
+            <div class="lp-ai-files">
+              <div class="lp-ai-files__title">Sube tus materiales de estudio</div>
+              <div class="lp-ai-flow">
+                <div class="lp-ai-flow__row">
+                  <span class="lp-ai-flow__item">📄 PDF</span>
+                  <span class="lp-ai-flow__item">🖼 Imagen</span>
+                  <span class="lp-ai-flow__item">🎤 Audio</span>
+                  <span class="lp-ai-flow__item">📊 PPT</span>
+                  <span class="lp-ai-flow__item">📝 Documento</span>
+                </div>
+                <div class="lp-ai-flow__arrow">↓</div>
+                <div class="lp-ai-flow__brain">🧠 IA de TrackFocus</div>
+                <div class="lp-ai-flow__arrow">↓</div>
+                <div class="lp-ai-flow__row lp-ai-flow__row--out">
+                  <span class="lp-ai-flow__item lp-ai-flow__item--out">📚 Resúmenes</span>
+                  <span class="lp-ai-flow__item lp-ai-flow__item--out">❓ Preguntas</span>
+                  <span class="lp-ai-flow__item lp-ai-flow__item--out">✏️ Ejercicios</span>
+                  <span class="lp-ai-flow__item lp-ai-flow__item--out">📈 Retroalimentación</span>
+                </div>
+              </div>
+              <p class="lp-ai-files__desc">Sube tus materiales de estudio y recibe ayuda personalizada para comprender mejor los temas que estás aprendiendo.</p>
+            </div>
+          </div>
+
+          <button class="lp-ai-cta" id="lpAICta">Comenzar a estudiar gratis</button>
+        </div>
+
+        <footer class="lp-footer">
+          <span>© 2026 TrackFocus</span>
+          <span class="lp-footer-sep">·</span>
+          <span>Datos sincronizados de forma segura en la nube</span>
+        </footer>
+      </div>
+    </div>`;
+  }
+
+  function wireWelcome() {
+    root().querySelectorAll('.lp-card[data-role]').forEach(card => {
+      card.addEventListener('click', () => {
+        root().querySelectorAll('.lp-card[data-role]').forEach(c => c.classList.remove('lp-selected'));
+        card.classList.add('lp-selected');
+        renderAuthForm(card.dataset.role);
+        setTimeout(() => {
+          const form = document.getElementById('authForm');
+          if (form) form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 60);
+      });
+    });
+
+    const scrollBtn = document.getElementById('lpScrollCards');
+    if (scrollBtn) {
+      scrollBtn.addEventListener('click', () => {
+        root().querySelector('.lp-cards')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+
+    const ctaBtn = document.getElementById('lpAICta');
+    if (ctaBtn) {
+      ctaBtn.addEventListener('click', () => {
+        root().querySelector('.lp-cards')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+
+    wireLandingAnimations();
+  }
+
+  function root() { return document.getElementById('app'); }
+
+  const _svgIco = {
+    user: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 10-16 0"/></svg>`,
+    mail: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 01-2.06 0L2 7"/></svg>`,
+    lock: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>`,
+    arrow: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`
+  };
+
+  function _lpField(label, inputHTML, optLabel) {
+    const opt = optLabel ? ` <span class="lp-opt">${optLabel}</span>` : '';
+    return `<div class="lp-field"><label>${label}${opt}</label>${inputHTML}</div>`;
+  }
+
+  function _lpInput(ico, attrs) {
+    return `<div class="lp-input-row"><span class="lp-input-ico">${_svgIco[ico]}</span><input ${attrs} /></div>`;
+  }
+
+  // Logo oficial de Google (Material) para el botón de login
+  const GOOGLE_SVG = `<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>`;
+
+  function renderAuthForm(role) {
+    const container = document.getElementById('authForm');
+    if (!container) return;
+
+    container.classList.remove('hidden', 'lp-form--purple', 'lp-form--blue');
+
+    const cfg = {
+      student: { cls: 'lp-form-emoji--gold',   emoji: '🎒', title: 'Entrar como Estudiante', subtitle: 'Inicia sesión con tu cuenta de Google. Crearemos tu perfil al instante.' },
+      teacher: { cls: 'lp-form-emoji--purple', emoji: '👩‍🏫', title: 'Entrar como Docente',    subtitle: 'Inicia sesión con tu cuenta institucional de Google.' },
+      admin:   { cls: 'lp-form-emoji--blue',   emoji: '🛡️', title: 'Acceso Administrador',     subtitle: 'Inicia sesión con Google y luego ingresa la contraseña de administrador.' }
+    }[role];
+
+    if (role === 'teacher') container.classList.add('lp-form--purple');
+    if (role === 'admin')   container.classList.add('lp-form--blue');
+
+    container.innerHTML = `
+      <div class="lp-form-head">
+        <div class="lp-form-emoji ${cfg.cls}">${cfg.emoji}</div>
+        <div class="lp-form-head-text">
+          <h2>${cfg.title}</h2>
+          <p>${cfg.subtitle}</p>
+        </div>
+      </div>
+      <button class="lp-btn-google" type="button" id="googleSignInBtn">
+        ${GOOGLE_SVG}
+        <span>Continuar con Google</span>
+      </button>
+      <p class="lp-form-foot">Al continuar aceptas que tus datos se sincronicen de forma segura en la nube.</p>
+    `;
+
+    document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+      try {
+        await Auth.signInWithGoogle(role);
+      } catch (err) {
+        UI.flash(err.message || 'No se pudo iniciar Google. Revisa la configuración.', 'error');
+      }
+    });
+  }
+
+  // ---- Onboarding post-Google para estudiantes (códigos de colegio/aula) ----
+  function screenStudentOnboarding() {
+    const u = Roles.current();
+    if (!u) { return ''; }
+    return `
+      <div class="card" style="max-width:520px;margin:48px auto;">
+        <h2 style="margin:0 0 8px;">¡Bienvenido${u.name ? ', ' + u.name.split(' ')[0] : ''}!</h2>
+        <p class="muted" style="margin:0 0 22px;">Para unirte a tu colegio, ingresa los códigos que te dio tu profesor. Puedes saltarlo y agregarlos después.</p>
+        <form id="onboardForm">
+          <label>Código del colegio <span class="muted">(opcional)</span></label>
+          <input name="code" maxlength="6" placeholder="6 caracteres" style="text-transform:uppercase;" />
+          <label style="margin-top:14px;">Código del aula <span class="muted">(opcional)</span></label>
+          <input name="inviteCode" maxlength="8" placeholder="8 caracteres" style="text-transform:uppercase;" />
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button class="primary" type="submit">Continuar</button>
+            <button class="ghost" type="button" id="skipOnboard">Saltar por ahora</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  function wireStudentOnboarding() {
+    document.getElementById('onboardForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const u = Roles.current();
+        await Auth.applyStudentCodes(u.id, fd.get('code'), fd.get('inviteCode'));
+        await Storage.flush();
+        const fresh = Roles.current();
+        if (fresh.schoolId && fresh.approvalStatus === 'pending') return go('pending-approval');
+        return go('institution');
+      } catch (err) { UI.flash(err.message, 'error'); }
+    });
+    document.getElementById('skipOnboard')?.addEventListener('click', () => go('institution'));
+  }
+
+  // ---- Pantalla para promover a docente (post-Google) ----
+  function screenTeacherPromote() {
+    return `
+      <div class="card" style="max-width:520px;margin:48px auto;">
+        <h2 style="margin:0 0 8px;">Verificación de docente</h2>
+        <p class="muted" style="margin:0 0 22px;">Ingresa el código del colegio que te dio el administrador.</p>
+        <form id="teacherPromoteForm">
+          <label>Código del colegio</label>
+          <input name="code" maxlength="6" required placeholder="6 caracteres" style="text-transform:uppercase;" />
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button class="primary" type="submit">Continuar</button>
+            <button class="ghost" type="button" id="cancelTeacherPromote">Cancelar</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  function wireTeacherPromote() {
+    document.getElementById('teacherPromoteForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const u = Roles.current();
+        await Auth.promoteToTeacher(u.id, fd.get('code'));
+        await Storage.flush();
+        go('teacher-dashboard');
+      } catch (err) { UI.flash(err.message, 'error'); }
+    });
+    document.getElementById('cancelTeacherPromote')?.addEventListener('click', async () => {
+      await Auth.logout();
+      go('welcome');
+    });
+  }
+
+  // ---- Pantalla para promover a super admin ----
+  function screenAdminPromote() {
+    return `
+      <div class="card" style="max-width:520px;margin:48px auto;">
+        <h2 style="margin:0 0 8px;">Acceso de administrador</h2>
+        <p class="muted" style="margin:0 0 22px;">Ingresa la contraseña maestra para acceder al panel global.</p>
+        <form id="adminPromoteForm">
+          <label>Contraseña</label>
+          <input name="password" type="password" required placeholder="Contraseña secreta" />
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button class="primary" type="submit">Entrar al panel</button>
+            <button class="ghost" type="button" id="cancelAdminPromote">Cancelar</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  function wireAdminPromote() {
+    document.getElementById('adminPromoteForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const u = Roles.current();
+        await Auth.promoteToSuperAdmin(u.id, fd.get('password'));
+        await Storage.flush();
+        go('admin-dashboard');
+      } catch (err) { UI.flash(err.message, 'error'); }
+    });
+    document.getElementById('cancelAdminPromote')?.addEventListener('click', async () => {
+      await Auth.logout();
+      go('welcome');
+    });
+  }
+
+  function wireLandingAnimations() {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // --- Animated counters ---
+    const counters = root().querySelectorAll('.lp-stat-n[data-count]');
+    if (counters.length) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          observer.unobserve(entry.target);
+          const el = entry.target;
+          const target = parseInt(el.dataset.count, 10);
+          const prefix = el.dataset.prefix || '';
+          if (reduced) {
+            el.textContent = prefix + target;
+            return;
+          }
+          const duration = target >= 100 ? 2000 : target >= 20 ? 1800 : 1500;
+          const start = performance.now();
+          function step(now) {
+            const t = Math.min((now - start) / duration, 1);
+            const ease = 1 - Math.pow(1 - t, 3);
+            el.textContent = prefix + Math.round(ease * target);
+            if (t < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        });
+      }, { threshold: 0.5 });
+      counters.forEach(el => observer.observe(el));
+    }
+
+    // --- Scroll reveal ---
+    const reveals = root().querySelectorAll('.reveal');
+    if (reveals.length) {
+      if (reduced) {
+        reveals.forEach(el => el.classList.add('visible'));
+      } else {
+        const ro = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            ro.unobserve(entry.target);
+            const delay = parseInt(entry.target.dataset.delay || '0', 10);
+            setTimeout(() => entry.target.classList.add('visible'), delay);
+          });
+        }, { threshold: 0.12 });
+        reveals.forEach(el => ro.observe(el));
       }
     }
 
-    const activeRole = Auth.getActiveRole();
-    if (!activeRole) {
-      console.error('[App] No active role set');
-      return go('welcome');
+    // --- Parallax on scroll ---
+    if (!reduced) {
+      const glows = [
+        root().querySelector('.lp-glow-1'),
+        root().querySelector('.lp-glow-2'),
+        root().querySelector('.lp-glow-3'),
+      ].filter(Boolean);
+      function onScroll() {
+        const y = window.scrollY;
+        if (glows[0]) glows[0].style.transform = 'translateX(-50%) translateY(' + (y * 0.15) + 'px)';
+        if (glows[1]) glows[1].style.transform = 'translateY(' + (y * -0.08) + 'px)';
+        if (glows[2]) glows[2].style.transform = 'translateY(' + (y * 0.06) + 'px)';
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
     }
-
-    console.log('[App] Active role:', activeRole.role);
-
-    // 3. Cargar/crear datos del usuario
-    try {
-      await Users.syncFromSupabase(authSession.user.id);
-    } catch (err) {
-      console.error('[App] Error syncing user:', err);
-      UI.flash('Error sincronizando datos. Intenta recargar.', 'error');
-      return go('welcome');
-    }
-
-    // 4. Navegar según rol
-    if (activeRole.role === 'student') {
-      return go('dashboard');
-    } else if (activeRole.role === 'teacher') {
-      return go('teacher-dashboard');
-    } else if (activeRole.role === 'super_admin') {
-      return go('admin-dashboard');
-    }
-
-    console.error('[App] Unknown role:', activeRole.role);
-    go('welcome');
   }
 
-  return { go, start };
+  return {
+    go,
+    start,
+    _historyFilters: {},
+    _lbScope: 'classroom',
+    _lbPeriod: 'week',
+    _classroomId: null,
+    _studentDetailId: null,
+    _editSchoolId: null,
+    _userFilterRole: '',
+    _userFilterSchool: ''
+  };
 })();
+
+window.addEventListener('DOMContentLoaded', App.start);
