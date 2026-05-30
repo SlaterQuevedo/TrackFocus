@@ -1,32 +1,24 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TrackFocus — Plataforma Educativa</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/styles.css" />
-  <link rel="stylesheet" href="assets/styles-gamification.css" />
-  <link rel="stylesheet" href="assets/styles-charts.css" />
-  <link rel="stylesheet" href="assets/styles-landing.css" />
-  <link rel="stylesheet" href="assets/styles-multimedia.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <img src="assets/logo.svg" class="brand-logo" alt="TrackFocus">
-      <span>TrackFocus</span>
+  <!-- Barra Pomodoro global — visible en todas las páginas cuando está activo -->
+  <div id="pomBar" class="pom-bar hidden">
+    <div class="pom-bar-timer">
+      <span id="pomBarDisplay">25:00</span>
+      <span id="pomBarMode">LISTO</span>
     </div>
-    <nav id="topnav" class="topnav hidden"></nav>
-    <div id="userbox" class="userbox hidden">
-      <span id="userLabel"></span>
-      <button id="logoutBtn" class="ghost">Salir</button>
+    <div class="pom-bar-center">
+      <select id="pomBarSubject"></select>
+      <div class="pom-bar-controls">
+        <button id="pomBarStart" class="primary">▶ Iniciar</button>
+        <button id="pomBarPause" class="ghost">⏸</button>
+        <button id="pomBarSkip" class="ghost">⏭</button>
+        <button id="pomBarReset" class="ghost">↺</button>
+      </div>
     </div>
-  </header>
+    <div class="pom-bar-right">
+      <label>Enf. <input type="number" id="pomBarFocus" value="25" min="1" max="120" /></label>
+      <label>Des. <input type="number" id="pomBarBreak" value="5" min="1" max="30" /></label>
+      <button class="ghost" id="pomBarToggle" title="Ocultar">✕</button>
+    </div>
+  </div>
 
   <main id="app" class="container"></main>
 
