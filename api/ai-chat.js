@@ -1,8 +1,8 @@
-// Vercel Edge Function: Chat educativo con Gemini 2.5 Flash Preview
+// Vercel Edge Function: Chat educativo con Gemini 3.1 Flash Lite
 // action "message"  → streaming SSE del tutor
 // action "finalize" → calcula métricas de concentración y aprendizaje
 
-const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20';
+const GEMINI_MODEL = 'gemini-3.1-flash-lite';
 const GEMINI_BASE  = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export default async (req, res) => {
